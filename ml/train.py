@@ -36,6 +36,7 @@ from ecosmart_ml import config as C
 from ecosmart_ml.export import (save_model_json, tree_depth, tree_from_sklearn,
                                 write_header)
 from ecosmart_ml.pipeline import Baseline, run
+from ecosmart_ml import plots
 
 ML_DIR = Path(__file__).resolve().parent
 ROOT = ML_DIR.parent
@@ -43,6 +44,7 @@ DEFAULT_DATA = ML_DIR / "data" / "synthetic_sweat.csv"
 DEFAULT_HEADER = ROOT / "include" / "model_weights.h"
 DEFAULT_MODEL_JSON = ML_DIR / "model" / "model.json"
 DEFAULT_METRICS = ROOT / "docs" / "results" / "metrics.json"
+DEFAULT_PLOTS = ROOT / "docs" / "img"
 
 DEPTHS = (2, 3, 4, 5, 6)
 MIN_SAMPLES_LEAF = 25
@@ -199,6 +201,8 @@ def main() -> None:
     ap.add_argument("--header", type=Path, default=DEFAULT_HEADER)
     ap.add_argument("--model-json", type=Path, default=DEFAULT_MODEL_JSON)
     ap.add_argument("--metrics", type=Path, default=DEFAULT_METRICS)
+    ap.add_argument("--plots", type=Path, default=DEFAULT_PLOTS,
+                    help="directory for figures ('' to skip)")
     args = ap.parse_args()
 
     if not args.data.exists():
@@ -263,6 +267,14 @@ def main() -> None:
     save_model_json(model, args.model_json)
     args.metrics.parent.mkdir(parents=True, exist_ok=True)
     args.metrics.write_text(json.dumps(metrics, indent=2) + "\n")
+
+    if str(args.plots):
+        # Showcase the unseen test wearer with the most distinct episode types.
+        sid = max(test, key=lambda k: (len({t for t in test[k]["type"] if t}), -k))
+        plots.timeline(test[sid], model, args.plots / "test_subject_timeline.png",
+                       f"Unseen synthetic test wearer #{sid}: signals, labelled anomalies "
+                       "and on-device alert")
+        plots.depth_sweep(cv_f1, depth, args.plots / "depth_selection.png")
 
     te = metrics["window_level"]["test"]
     ev = metrics["event_level_test"]
