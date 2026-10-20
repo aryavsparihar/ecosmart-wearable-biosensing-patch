@@ -33,14 +33,28 @@ class Baseline {
 
   void normalize(const int32_t* f, int8_t* z) const;
 
-  int32_t mean(uint8_t i) const { return mean_[i]; }
-  int32_t scale(uint8_t i) const { return scale_[i]; }
+  int32_t mean(uint8_t i) const { return ready_ ? mem_.stats[i].mean : 0; }
+  int32_t scale(uint8_t i) const { return ready_ ? mem_.stats[i].scale : 1; }
 
  private:
-  int64_t sum_[features::kNumFeatures];
-  uint64_t sumSq_[features::kNumFeatures];
-  int32_t mean_[features::kNumFeatures];
-  int32_t scale_[features::kNumFeatures];
+  // The accumulators are dead once the baseline is frozen, so the frozen
+  // statistics reuse their storage (saves 120 bytes of SRAM). stats[i]
+  // occupies exactly the bytes of acc.sum[i], which finalize() has already
+  // consumed when it writes them.
+  struct Stat {
+    int32_t mean;
+    int32_t scale;
+  };
+  union Storage {
+    struct {
+      int64_t sum[features::kNumFeatures];
+      uint64_t sumSq[features::kNumFeatures];
+    } acc;
+    Stat stats[features::kNumFeatures];
+  };
+  static_assert(sizeof(Stat) == sizeof(int64_t), "Stat must overlay one sum");
+
+  Storage mem_;
   uint8_t count_;
   bool ready_;
 };
