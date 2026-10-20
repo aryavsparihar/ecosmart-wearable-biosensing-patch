@@ -7,9 +7,11 @@
 //   scale_i = max(std_i, floor_i, 1)
 //   z_i     = clamp(round((f_i - mean_i) * kZScale / scale_i), -127, 127)
 //
-// floor_i comes from the trained model (model_weights.h) and stops a feature
-// that happened to be perfectly flat during calibration from turning sensor
-// noise into huge z-scores. Mirrored by ml/ecosmart_ml/pipeline.py.
+// floor_i comes from the trained model (model_weights.h): the typical normal
+// variability of that feature around a wearer's own baseline. A two-minute
+// calibration cannot observe slow physiological drift, so without the floor a
+// quiet calibration would turn ordinary drift into saturated z-scores.
+// Mirrored by ml/ecosmart_ml/pipeline.py.
 #pragma once
 
 #include <stdint.h>
