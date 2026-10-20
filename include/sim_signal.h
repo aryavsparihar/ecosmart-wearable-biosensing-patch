@@ -38,6 +38,7 @@ class SimSignal {
   SimEpisode episode() const { return episode_; }
   uint32_t samples() const { return t_; }
 
+  // Episode name as a PROGMEM string (print with a __FlashStringHelper cast).
   static const char* name(SimEpisode e);
 
  private:

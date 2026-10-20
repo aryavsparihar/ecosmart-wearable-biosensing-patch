@@ -1,8 +1,16 @@
 #include "sim_signal.h"
 
 #include "fixed_point.h"
+#include "platform.h"
 
 namespace {
+
+const char kNameNone[] PROGMEM = "none";
+const char kNameAcidic[] PROGMEM = "acidic_ph";
+const char kNameTemp[] PROGMEM = "temperature_rise";
+const char kNameSurge[] PROGMEM = "conductivity_surge";
+const char kNameAlkaline[] PROGMEM = "alkaline_ph";
+const char kNameDropout[] PROGMEM = "electrode_dropout";
 
 // Personal baseline of the simulated wearer.
 constexpr int16_t kPh = 560;     // pH 5.60
@@ -92,17 +100,17 @@ void SimSignal::next(int16_t* ph, int16_t* cond, int16_t* temp) {
 const char* SimSignal::name(SimEpisode e) {
   switch (e) {
     case SimEpisode::kAcidicPh:
-      return "acidic_ph";
+      return kNameAcidic;
     case SimEpisode::kTemperatureRise:
-      return "temperature_rise";
+      return kNameTemp;
     case SimEpisode::kConductivitySurge:
-      return "conductivity_surge";
+      return kNameSurge;
     case SimEpisode::kAlkalinePh:
-      return "alkaline_ph";
+      return kNameAlkaline;
     case SimEpisode::kElectrodeDropout:
-      return "electrode_dropout";
+      return kNameDropout;
     case SimEpisode::kNone:
       break;
   }
-  return "none";
+  return kNameNone;
 }
