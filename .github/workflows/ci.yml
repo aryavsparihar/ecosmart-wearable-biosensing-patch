@@ -111,7 +111,7 @@ jobs:
         run: pio run -e simavr
       - name: Execute on emulated ATmega328P
         run: |
-          timeout 90 run_avr -m atmega328p -f 16000000 .pio/build/simavr/firmware.elf \
+          timeout 90 simavr -m atmega328p -f 16000000 .pio/build/simavr/firmware.elf \
             > simavr.log 2>&1 || true
           sed -e 's/\x1b\[[0-9;]*m//g' simavr.log > serial.log
           head -n 20 serial.log
