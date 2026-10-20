@@ -29,6 +29,16 @@ def test_tree_predict():
     assert model.predict([11] + [0] * 14) == (1, 95, 2)
 
 
+def test_saturation_guard_overrides_tree():
+    always_normal = TreeModel(nodes=[(LEAF, 0, 0, 0)], scale_floors=FLOORS)
+    calm = [(550, 900, 3400)] * 120
+    wild = [(1400, 10000, 9000) if i % 2 else (0, 0, 0) for i in range(40)]
+    events = run(calm + wild, model=always_normal)
+    assert events[-1].label == 1 and events[-1].leaf == C.GUARD_LEAF
+    assert events[-1].alert
+    assert all(e.label == 0 for e in events if e.end_sample < 120)
+
+
 def test_window_schedule_and_phases():
     samples = [(550, 900, 3400)] * 200
     events = run(samples, floors=FLOORS)

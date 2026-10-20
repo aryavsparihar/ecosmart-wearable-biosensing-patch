@@ -165,6 +165,9 @@ class AnomalyPipeline:
         event.z = self.baseline.normalize(feats)
         if self.model is not None:
             event.label, event.p_anomaly, event.leaf = self.model.predict(event.z)
+            saturated = sum(1 for v in event.z if abs(v) >= C.Z_CLAMP)
+            if saturated >= C.SATURATION_GUARD:
+                event.label, event.p_anomaly, event.leaf = 1, 100, C.GUARD_LEAF
         event.alert = self.alert.update(event.label == 1)
         event.phase = self.phase
         return event

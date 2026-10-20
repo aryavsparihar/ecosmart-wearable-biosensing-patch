@@ -23,6 +23,8 @@ def test_constants_match_firmware():
     assert config.CALIBRATION_WINDOWS == _constexpr("kCalibrationWindows")
     assert config.Z_SCALE == _constexpr("kZScale")
     assert config.Z_CLAMP == _constexpr("kZClamp")
+    assert config.SATURATION_GUARD == _constexpr("kSaturationGuard")
+    assert config.GUARD_LEAF == 0xFE
     assert config.ALERT_ON_WINDOWS == _constexpr("kAlertOnWindows")
     assert config.ALERT_OFF_WINDOWS == _constexpr("kAlertOffWindows")
 

@@ -63,6 +63,14 @@ WindowResult AnomalyPipeline::push(int16_t ph, int16_t cond, int16_t temp) {
 
   baseline_.normalize(features_, z_);
   lastPrediction_ = classifier::predict(z_);
+  uint8_t saturated = 0;
+  for (uint8_t i = 0; i < features::kNumFeatures; ++i) {
+    if (z_[i] >= cfg::kZClamp || z_[i] <= -cfg::kZClamp) ++saturated;
+  }
+  if (saturated >= cfg::kSaturationGuard) {
+    Prediction guarded = {1, 100, cfg::kGuardLeaf};
+    lastPrediction_ = guarded;
+  }
   r.classified = true;
   r.prediction = lastPrediction_;
   r.alert = alert_.update(lastPrediction_.label == 1);

@@ -69,6 +69,26 @@ static void test_temperature_rise_raises_then_clears_alert() {
   TEST_ASSERT_FALSE(p.alertActive());
 }
 
+static void test_garbage_input_trips_saturation_guard() {
+  AnomalyPipeline p;
+  feed(p, 200, 550, 900, 3400);
+  bool alert = false;
+  uint32_t lcg = 12345;
+  for (uint8_t i = 0; i < 48; ++i) {
+    int16_t v[3];
+    for (uint8_t c = 0; c < 3; ++c) {
+      lcg = lcg * 1103515245UL + 12345UL;
+      v[c] = static_cast<int16_t>((lcg >> 16) % 10001);
+    }
+    WindowResult r = p.push(v[0], v[1], v[2]);
+    if (r.alert) alert = true;
+    if (r.classified && r.prediction.leaf == cfg::kGuardLeaf) {
+      TEST_ASSERT_EQUAL_UINT8(1, r.prediction.label);
+    }
+  }
+  TEST_ASSERT_TRUE(alert);
+}
+
 static void test_out_of_range_samples_are_clamped() {
   AnomalyPipeline p;
   feed(p, cfg::kWindowSize, -500, 32000, 3400);
@@ -92,6 +112,7 @@ int main() {
   RUN_TEST(test_calibration_completes_after_configured_windows);
   RUN_TEST(test_steady_signal_stays_normal);
   RUN_TEST(test_temperature_rise_raises_then_clears_alert);
+  RUN_TEST(test_garbage_input_trips_saturation_guard);
   RUN_TEST(test_out_of_range_samples_are_clamped);
   RUN_TEST(test_reset_restarts_calibration);
   return UNITY_END();

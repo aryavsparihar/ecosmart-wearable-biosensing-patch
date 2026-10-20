@@ -40,6 +40,13 @@ constexpr uint8_t kCalibrationWindows = 8;
 constexpr int32_t kZScale = 16;
 constexpr int32_t kZClamp = 127;
 
+// Out-of-distribution guard: if at least this many of the 15 z-scores are
+// saturated at +/-kZClamp, the window is far outside anything the tree saw in
+// training (shorted probe, loose electrode, garbage input) and is flagged
+// regardless of the tree's vote. Fires on <0.1 % of normal synthetic windows.
+constexpr uint8_t kSaturationGuard = 6;
+constexpr uint8_t kGuardLeaf = 0xFE;  // reported as the leaf of guarded windows
+
 // Alert debouncing: consecutive anomalous / normal windows needed to switch.
 constexpr uint8_t kAlertOnWindows = 2;
 constexpr uint8_t kAlertOffWindows = 2;
