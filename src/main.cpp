@@ -5,6 +5,9 @@
 // decision tree on every window to flag possible irregularities - entirely on
 // the Arduino Nano, no cloud. Output: CSV over serial plus green/red LEDs.
 //
+// Build with -DSIMULATION_MODE (env nanoatmega328_sim) to replace the sensor
+// reads with the on-device synthetic signal generator (sim_signal.h).
+//
 // Serial commands: 'r' restarts the personal calibration, 'm' prints free RAM.
 #include <Arduino.h>
 
@@ -17,15 +20,50 @@
 #include "status_leds.h"
 #include "temperature_sensor.h"
 
+#if defined(SIMULATION_MODE)
+#include "sim_signal.h"
+#endif
+
 namespace {
 
+#if !defined(SIMULATION_MODE)
 PhSensor phSensor(pins::kPhSensor);
 ConductivitySensor condSensor(pins::kConductivity);
 TemperatureSensor tempSensor(pins::kTempOneWire);
+#endif
 StatusLeds leds(pins::kLedGreen, pins::kLedRed);
 AnomalyPipeline pipeline;
 
+#if defined(SIMULATION_MODE)
+SimSignal sim;
+SimEpisode lastEpisode = SimEpisode::kNone;
+#endif
+
 uint32_t lastSampleMs = 0;
+
+void readSample(int16_t* ph, int16_t* cond, int16_t* temp) {
+#if defined(SIMULATION_MODE)
+  sim.next(ph, cond, temp);
+  if (sim.episode() != lastEpisode) {
+    lastEpisode = sim.episode();
+    Serial.print(F("# sim_episode="));
+    Serial.println(reinterpret_cast<const __FlashStringHelper*>(
+        SimSignal::name(lastEpisode)));
+  }
+#else
+  *ph = phSensor.readCenti();
+  *cond = condSensor.readCenti();
+  *temp = tempSensor.centi();
+#endif
+}
+
+bool sensorsHealthy() {
+#if defined(SIMULATION_MODE)
+  return true;
+#else
+  return tempSensor.present();
+#endif
+}
 
 void handleSerialCommands() {
   while (Serial.available() > 0) {
@@ -40,7 +78,7 @@ void handleSerialCommands() {
 }
 
 LedMode ledModeFor(const AnomalyPipeline& p) {
-  if (!tempSensor.present()) return LedMode::kFault;
+  if (!sensorsHealthy()) return LedMode::kFault;
   if (p.phase() != Phase::kMonitoring) return LedMode::kCalibrating;
   return p.alertActive() ? LedMode::kAlert : LedMode::kNormal;
 }
@@ -51,9 +89,11 @@ void setup() {
   Serial.begin(cfg::kSerialBaud);
   logger::printBanner();
 
+#if !defined(SIMULATION_MODE)
   phSensor.begin();
   condSensor.begin();
   if (!tempSensor.begin()) Serial.println(F("# warn: DS18B20 not found on D2"));
+#endif
   leds.begin();
 
   logger::printFreeRam();
@@ -63,7 +103,9 @@ void setup() {
 
 void loop() {
   const uint32_t now = millis();
+#if !defined(SIMULATION_MODE)
   tempSensor.update(now);
+#endif
   leds.update(now);
   handleSerialCommands();
 
@@ -72,9 +114,7 @@ void loop() {
 
   LogRecord rec;
   rec.ms = now;
-  rec.ph = phSensor.readCenti();
-  rec.cond = condSensor.readCenti();
-  rec.temp = tempSensor.centi();
+  readSample(&rec.ph, &rec.cond, &rec.temp);
 
   const Phase before = pipeline.phase();
   const bool alertBefore = pipeline.alertActive();
