@@ -35,6 +35,11 @@ constexpr uint8_t kWindowHop = 8;
 // Personal baseline: the first N complete windows after power-up.
 constexpr uint8_t kCalibrationWindows = 8;
 
+// Baseline-relative features are quantised to int8 z-scores in units of
+// 1/kZScale standard deviations, saturating at +/-kZClamp (~7.9 sigma).
+constexpr int32_t kZScale = 16;
+constexpr int32_t kZClamp = 127;
+
 // Alert debouncing: consecutive anomalous / normal windows needed to switch.
 constexpr uint8_t kAlertOnWindows = 2;
 constexpr uint8_t kAlertOffWindows = 2;
