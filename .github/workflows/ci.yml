@@ -125,3 +125,30 @@ jobs:
         with:
           name: simavr-serial-log
           path: serial.log
+
+  wokwi:
+    name: Wokwi simulation (needs WOKWI_CLI_TOKEN)
+    runs-on: ubuntu-latest
+    env:
+      WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+    steps:
+      - name: Skip without token
+        if: env.WOKWI_CLI_TOKEN == ''
+        run: echo "::notice::Add a WOKWI_CLI_TOKEN repository secret to run the Wokwi circuit in CI."
+      - uses: actions/checkout@v7
+        if: env.WOKWI_CLI_TOKEN != ''
+      - uses: actions/setup-python@v7
+        if: env.WOKWI_CLI_TOKEN != ''
+        with:
+          python-version: "3.13"
+      - name: Build Wokwi firmware
+        if: env.WOKWI_CLI_TOKEN != ''
+        run: pip install platformio==6.2.0 && pio run -e wokwi
+      - name: Simulate diagram.json
+        if: env.WOKWI_CLI_TOKEN != ''
+        uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          timeout: 45000
+          expect_text: "personal baseline calibrated"
+          fail_text: "DS18B20 not found"
