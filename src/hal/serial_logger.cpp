@@ -2,6 +2,10 @@
 
 #include <Arduino.h>
 
+// Linker-provided heap bounds (avr-libc).
+extern int __heap_start;
+extern int* __brkval;
+
 namespace {
 
 // Prints a centi-unit value as a decimal with two places, e.g. 552 -> 5.52.
@@ -65,8 +69,6 @@ void printRecord(const LogRecord& r) {
 }
 
 int freeRam() {
-  extern int __heap_start;
-  extern int* __brkval;
   int top;
   const int heapEnd = __brkval == 0 ? reinterpret_cast<int>(&__heap_start)
                                     : reinterpret_cast<int>(__brkval);
