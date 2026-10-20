@@ -87,17 +87,16 @@ surge, alkaline pH and electrode dropout. Signals are synthetic.</sub>
 ### Layer stack
 
 ```text
-          sweat in ──┐ inlet hole
-                     ▼
- ┌──────────────────────────────────────────────┐  1  transparent protective sheet
- ├──╮ ╭──╮ ╭──╮ ╭──╮ ╭──────────────────────────┤  2  microfluidic zigzag channel
- │  ╰─╯  ╰─╯  ╰─╯  ╰─╯   (plastic + double-sided tape)
- ├──────────────────────────────────────────────┤  3  gelatin hydrogel pad (3 cm)
- ├────────────┬─────────────────────────────────┤  4  pH indicator zone (1×1 cm)
- ├────────────┴──── ▬▬▬▬▬▬   ▬▬▬▬▬▬ ─────────────┤  5  Cu / Al foil electrodes ──► A1
- ├──────────────────────────────────────────────┤  6  cornstarch bioplastic backing
- └───(((  adhesive ring  )))────────────────────┘  7  adhesive ring
-                      skin
+           inlet ▼
+ ┌──────────────○───────────────────────────┐  1  transparent protective sheet
+ │  ╭─╮ ╭─╮ ╭─╮ ╭─╮ ╭─╮  zigzag channel ──► │  2  microfluidic channel (plastic + tape)
+ │ ─╯ ╰─╯ ╰─╯ ╰─╯ ╰─╯ ╰─╮                   │
+ ├──────────────────────▼───────────────────┤  3  gelatin hydrogel pad (3 cm disc)
+ │  [ pH square ]                           │  4  pH indicator zone (1 × 1 cm)
+ │              ▬▬▬▬▬▬  gap  ▬▬▬▬▬▬ ──► A1  │  5  Cu / Al foil electrodes
+ ├──────────────────────────────────────────┤  6  cornstarch bioplastic backing
+ └─▓▓▓▓──────────────────────────────▓▓▓▓───┘  7  adhesive ring
+ ░░░░░░░░░░░░░░░░░░ skin ░░░░░░░░░░░░░░░░░░░
 ```
 
 ```mermaid
@@ -199,16 +198,17 @@ mirror.
 ### Wiring
 
 ```text
-                 Arduino Nano
-              ┌───────────────┐
-  pH board Po ┤A0           D2├──────┬───────────── DS18B20 DQ
-              │               │    [4.7k]
- 5V ─[foil A]~sweat~[foil B]─┬┤A1           5V├──────┴──┬── DS18B20 VDD
-                             │   │               │         │
-                          [1k]   │             D5├─[220]─►|─┐ green
-                             │   │             D6├─[220]─►|─┤ red
-                            GND ─┤GND            │          │
-                                 └───────────────┘         GND (also DS18B20 GND)
+ Electrode divider (A1)          DS18B20 (D2)                 Status LEDs (D5, D6)
+
+   5V                              5V ──┬────────── VDD          D5 ──[220Ω]──►|── GND  green
+    │                                   │                        D6 ──[220Ω]──►|── GND  red
+ [foil A]                            [4.7kΩ]
+    ≈  sweat bridges the gap            │                      pH front-end (optional)
+ [foil B]                          D2 ──┴────────── DQ
+    ├────────► A1                  GND ──────────── GND          5V ── VCC
+ [1 kΩ]                                                          GND ── GND
+    │                                                            A0 ◄── Po (analog out)
+   GND
 ```
 
 - **Electrodes**: one foil strip goes to **5 V**, the other to **A1**, and A1
