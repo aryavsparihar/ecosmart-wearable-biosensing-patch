@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    name: Firmware build + native tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install platformio==6.2.0
+      - name: Build Arduino Nano firmware (sensors, simulation, Wokwi)
+        run: pio run -e nanoatmega328 -e nanoatmega328_sim -e wokwi | tee build.log
+      - name: Memory report
+        run: |
+          {
+            echo "### Arduino Nano memory usage"
+            echo '```'
+            grep -E "Environment|RAM:|Flash:" build.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Native unit tests (Unity)
+        run: pio test -e native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-hex
+          path: .pio/build/*/firmware.hex
