@@ -228,3 +228,79 @@ mirror.
 > Power the patch only from a battery or USB power bank. Never connect it to
 > anything mains-powered while someone is wearing it, and never wear it on
 > broken or irritated skin.
+
+---
+
+## Fabrication recipes
+
+These are the recipes used for the paper prototype. The full guide, with
+cutting, assembly and safety notes, is in
+[docs/fabrication-guide.md](docs/fabrication-guide.md).
+
+### Cornstarch bioplastic backing (layer 6)
+
+| Ingredient | Amount |
+|---|---|
+| Cornstarch | 20 g |
+| Water | 60 mL |
+| White vinegar | 5 mL |
+| Glycerin | 5 mL |
+
+1. Stir everything together cold until there are no lumps.
+2. Heat gently to **70-80 °C**, stirring constantly. The mixture thickens and
+   turns from milky white to **translucent**, gel-like.
+3. Spread it 2-3 mm thick on baking paper or a smooth tray.
+4. Let it **dry for 24 h** at room temperature, then peel it off and cut it to
+   shape.
+
+The glycerin acts as a plasticiser so the sheet stays flexible, and the vinegar
+helps break up the starch granules for a more uniform film.
+
+### Gelatin hydrogel pad (layer 3)
+
+1. Dissolve **10 g gelatin in 30 mL warm water** (not boiling).
+2. Pour it into a shallow mould about 3 mm deep and let it set.
+3. Cut **3 cm discs**, and keep them covered so they don't dry out.
+
+### Other layers
+
+- **Microfluidic channel**: cut a zigzag channel (about 2 mm wide) through a
+  strip of double-sided tape, stick it between two transparent plastic sheets,
+  and punch an inlet hole at one end.
+- **pH zone**: a 1 × 1 cm square of universal-indicator paper.
+- **Electrodes**: two copper or aluminium foil strips about 2-3 mm apart, each
+  with a jumper wire taped or crimped to its tail.
+
+## Artificial sweat test procedure
+
+**Test fluid**: artificial sweat = **100 mL distilled water + 0.5 g NaCl**
+(0.5 % w/v). Its conductivity is roughly 9 mS/cm at room temperature, which is
+in the range reported for human eccrine sweat.
+
+**Demonstration buffers**: an **acidic pH 4-5** solution (for example diluted
+white vinegar) and a **basic pH 8-9** solution (for example baking soda in
+water). Confirm each one with indicator paper before use.
+
+1. Flash the firmware (or the `SIMULATION_MODE` build to rehearse) and open
+   the serial monitor or `tools/serial_plotter.py`.
+2. With the patch **dry**, power it up and leave it untouched for the warm-up
+   and calibration period (green LED blinking, about 90 s at 1 Hz). Then
+   apply a few drops of artificial sweat at the inlet and wait for the reading
+   to settle. *For a meaningful baseline, calibrate on the wetted patch*: send
+   `r` over serial to restart calibration once the electrodes are wet.
+3. Watch the fluid travel along the zigzag channel into the hydrogel. The
+   indicator square should show the sweat's near-neutral colour, and the
+   conductivity column on serial should rise from 0 to several mS/cm.
+4. Add a drop of the **acidic** buffer, then later the **basic** buffer. The
+   indicator colour changes visibly. On the electronics side, a step in
+   conductivity or temperature (warm the DS18B20 between two fingers) away from
+   the calibrated baseline turns the **red LED** on after two consecutive
+   anomalous windows, and it turns off again when the signals return.
+5. Record the log (`pio device monitor | tee session.csv`) and plot it with
+   `python tools/serial_plotter.py --file session.csv`.
+
+> [!NOTE]
+> The indicator strip is read by eye. The firmware's pH channel (A0) needs an
+> analog pH front-end, or the Wokwi potentiometer, to produce numbers. These
+> bench tests show that the sensing chain works. They are not physiological
+> measurements.
