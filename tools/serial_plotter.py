@@ -4,6 +4,7 @@
     python tools/serial_plotter.py --port /dev/ttyUSB0          # live from a Nano
     python tools/serial_plotter.py --file session.csv           # saved log
     python tools/serial_plotter.py --file session.csv --save session.png
+    python tools/serial_plotter.py --file sim.csv --time-scale 50   # undo time compression
 
 Lines starting with '#' (banner, window decisions, events, RAM reports) are
 echoed to the console; data rows are
@@ -40,7 +41,7 @@ class Row:
     alert: int
 
 
-def parse_line(line: str) -> Optional[Row]:
+def parse_line(line: str, time_scale: float = 1.0) -> Optional[Row]:
     """Returns a Row for data lines, None for comments / headers / garbage."""
     line = line.strip()
     if not line or line.startswith("#") or line.startswith("ms,"):
@@ -49,7 +50,7 @@ def parse_line(line: str) -> Optional[Row]:
     if len(parts) != 7:
         return None
     try:
-        return Row(int(parts[0]) / 1000.0, float(parts[1]), float(parts[2]),
+        return Row(int(parts[0]) / 1000.0 * time_scale, float(parts[1]), float(parts[2]),
                    float(parts[3]), parts[4], int(parts[5]), int(parts[6]))
     except ValueError:
         return None
@@ -103,20 +104,22 @@ def draw(fig, axes, rows: List[Row], title: str) -> None:
         status = (f"  |  {last.phase}  p_anomaly={last.p_anomaly}%  "
                   f"{'ALERT' if last.alert else 'normal'}")
     fig.suptitle(title + status, fontsize=10)
-    from matplotlib.patches import Patch
-    axes[0].legend(handles=[Patch(color=CALIB, alpha=0.3, label="calibrating"),
-                            Patch(color=ALERT, alpha=0.35, label="alert raised")],
-                   loc="upper right", fontsize=8, frameon=False, ncol=2)
+    if not fig.legends:
+        from matplotlib.patches import Patch
+        fig.legend(handles=[Patch(color=CALIB, alpha=0.3, label="warm-up / calibrating"),
+                            Patch(color=ALERT, alpha=0.35, label="alert raised (red LED)")],
+                   loc="upper center", bbox_to_anchor=(0.5, 0.955), fontsize=8,
+                   frameon=False, ncol=2)
 
 
-def read_serial(port: str, baud: int, buf: Buffer) -> None:
+def read_serial(port: str, baud: int, buf: Buffer, time_scale: float) -> None:
     import serial  # pyserial
     with serial.Serial(port, baud, timeout=1) as ser:
         while True:
             line = ser.readline().decode("ascii", errors="replace")
             if line.startswith("#"):
                 print(line.rstrip())
-            row = parse_line(line)
+            row = parse_line(line, time_scale)
             if row:
                 buf.add(row)
 
@@ -129,6 +132,9 @@ def main() -> int:
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--window", type=int, default=900, help="samples kept on screen (live)")
     ap.add_argument("--save", help="write the plot to this image instead of showing it")
+    ap.add_argument("--title", help="plot title (default: port or file name)")
+    ap.add_argument("--time-scale", type=float, default=1.0,
+                    help="multiply timestamps, e.g. 50 for the 20 ms/sample simavr build")
     args = ap.parse_args()
 
     import matplotlib
@@ -144,14 +150,15 @@ def main() -> int:
             for line in fh:
                 if line.startswith("#"):
                     print(line.rstrip())
-                row = parse_line(line)
+                row = parse_line(line, args.time_scale)
                 if row:
                     rows.append(row)
         if not rows:
             print("no data rows found", file=sys.stderr)
             return 1
-        draw(fig, axes, rows, f"Eco-Smart patch log: {args.file}")
-        fig.tight_layout()
+        from pathlib import Path
+        draw(fig, axes, rows, args.title or f"Eco-Smart patch log: {Path(args.file).name}")
+        fig.tight_layout(rect=(0, 0, 1, 0.93))
         if args.save:
             fig.savefig(args.save, dpi=150)
             print(f"wrote {args.save}")
@@ -161,10 +168,12 @@ def main() -> int:
 
     from matplotlib.animation import FuncAnimation
     buf = Buffer(maxlen=args.window)
-    threading.Thread(target=read_serial, args=(args.port, args.baud, buf), daemon=True).start()
+    threading.Thread(target=read_serial, args=(args.port, args.baud, buf, args.time_scale),
+                     daemon=True).start()
 
     def update(_):
-        draw(fig, axes, buf.snapshot(), f"Eco-Smart patch live: {args.port}")
+        draw(fig, axes, buf.snapshot(), args.title or f"Eco-Smart patch live: {args.port}")
+        fig.tight_layout(rect=(0, 0, 1, 0.93))
 
     anim = FuncAnimation(fig, update, interval=1000, cache_frame_data=False)  # noqa: F841
     plt.show()

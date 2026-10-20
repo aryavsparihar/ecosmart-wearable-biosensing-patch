@@ -15,6 +15,10 @@ def test_parses_firmware_rows():
     assert row.temp == 34.21 and row.phase == "MONITOR" and row.alert == 1
 
 
+def test_time_scale():
+    assert sp.parse_line("200,5.61,8.02,34.21,MONITOR,12,1", time_scale=50).t == 10.0
+
+
 def test_skips_comments_headers_and_noise():
     for line in ("# window=3 phase=CALIB alert=0", "ms,ph,cond_mScm,temp_C,phase,p_anomaly,alert",
                  "", "garbage", "1,2,3"):
