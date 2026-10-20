@@ -1,0 +1,6 @@
+# Python 3.11+; pinned for reproducible model export.
+numpy==2.5.4
+scikit-learn==1.9.1
+matplotlib==3.11.2
+pyserial==3.5
+pytest==9.1.1
