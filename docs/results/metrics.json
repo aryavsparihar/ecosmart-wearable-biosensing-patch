@@ -59,9 +59,9 @@
     "episodes_detected": 42,
     "detection_rate": 0.9545,
     "median_latency_s": 23.5,
-    "false_alerts": 5,
+    "false_alerts": 6,
     "monitored_hours": 20.0,
-    "false_alerts_per_hour": 0.25,
+    "false_alerts_per_hour": 0.3,
     "detection_by_type": {
       "acidic_ph": "6/6",
       "alkaline_ph": "9/9",
