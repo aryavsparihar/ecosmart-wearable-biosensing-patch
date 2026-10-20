@@ -37,6 +37,8 @@ All notable changes to this project are documented here. The format follows
 ## [0.2.0] - 2026-10-21
 
 ### Added
+- Integer window feature extraction (mean, variance, slope, min, max),
+  personal baseline calibration with int8 z-scores, and alert hysteresis.
 - Synthetic, seeded sweat-signal generator with personal baselines, drift,
   benign exertion bumps and six labelled anomaly types, quantised through the
   firmware's sensor model.
@@ -67,8 +69,6 @@ All notable changes to this project are documented here. The format follows
 - pH (A0), electrode conductivity (A1) and non-blocking DS18B20 (D2) drivers.
 - Status LEDs, serial CSV logger with free-RAM report, and a 1 Hz sampling
   loop.
-- Integer window feature extraction, personal baseline calibration and alert
-  hysteresis.
 
 [Unreleased]: https://github.com/aryavsparihar/ecosmart-wearable-biosensing-patch/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/aryavsparihar/ecosmart-wearable-biosensing-patch/compare/v0.2.0...v1.0.0
