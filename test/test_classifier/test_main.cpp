@@ -2,7 +2,7 @@
 
 #include "classifier.h"
 #include "config.h"
-#include "features.h"
+#include "window_features.h"
 #include "platform.h"
 
 using features::index;

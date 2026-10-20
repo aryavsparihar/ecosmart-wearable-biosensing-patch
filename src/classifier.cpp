@@ -1,7 +1,7 @@
 #include "classifier.h"
 
 #include "config.h"
-#include "features.h"
+#include "window_features.h"
 #include "model_weights.h"
 #include "platform.h"
 

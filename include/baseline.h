@@ -16,7 +16,7 @@
 
 #include <stdint.h>
 
-#include "features.h"
+#include "window_features.h"
 
 class Baseline {
  public:

@@ -14,7 +14,7 @@
 #include "baseline.h"
 #include "classifier.h"
 #include "config.h"
-#include "features.h"
+#include "window_features.h"
 #include "phase.h"
 #include "ring_buffer.h"
 

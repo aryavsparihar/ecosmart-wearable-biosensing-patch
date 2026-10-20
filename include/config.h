@@ -24,7 +24,7 @@ enum Channel : uint8_t { kChPh = 0, kChConductivity = 1, kChTemperature = 2 };
 constexpr uint8_t kNumChannels = 3;
 
 // Every channel is clamped to this range before it enters the pipeline so the
-// integer feature maths can never overflow (see features.cpp).
+// integer feature maths can never overflow (see window_features.cpp).
 constexpr int16_t kSampleMin = 0;
 constexpr int16_t kSampleMax = 10000;
 

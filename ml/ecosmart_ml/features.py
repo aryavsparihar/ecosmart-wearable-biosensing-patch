@@ -1,4 +1,4 @@
-"""Bit-exact port of src/features.cpp."""
+"""Bit-exact port of src/window_features.cpp."""
 
 from typing import List, Sequence
 
