@@ -15,11 +15,11 @@ jobs:
     name: Firmware build + native tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
@@ -37,7 +37,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Native unit tests (Unity)
         run: pio test -e native
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: firmware-hex
           path: .pio/build/*/firmware.hex
@@ -46,8 +46,8 @@ jobs:
     name: ML pipeline + parity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -72,8 +72,8 @@ jobs:
     name: Arduino IDE sketch (arduino-cli)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - uses: arduino/setup-arduino-cli@v2
@@ -95,11 +95,11 @@ jobs:
     name: Run firmware on simavr
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
@@ -113,14 +113,14 @@ jobs:
         run: |
           timeout 90 simavr -m atmega328p -f 16000000 .pio/build/simavr/firmware.elf \
             > simavr.log 2>&1 || true
-          sed -e 's/\x1b\[[0-9;]*m//g' simavr.log > serial.log
+          sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\.\.$//' simavr.log > serial.log
           head -n 20 serial.log
           grep -m1 "free_ram_bytes" serial.log
           grep -q "personal baseline calibrated" serial.log
           grep -q "ALERT - possible irregularity" serial.log
           grep -q "alert cleared" serial.log
           echo "Firmware calibrated, raised and cleared an alert on the emulated Nano."
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: simavr-serial-log
