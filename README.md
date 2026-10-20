@@ -350,7 +350,7 @@ ms,ph,cond_mScm,temp_C,phase,p_anomaly,alert
 ...
 # window=8 phase=MONITOR alert=0
 # event: personal baseline calibrated, monitoring
-# window=21 phase=MONITOR label=1 p=94 leaf=2 alert=1
+# window=24 phase=MONITOR label=1 p=94 leaf=2 alert=1
 # event: ALERT - possible irregularity vs baseline
 ```
 
