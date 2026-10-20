@@ -432,3 +432,147 @@ pull request:
 | Arduino IDE sketch | The exported sketch compiles with `arduino-cli` in both sensor and simulation mode |
 | Run firmware on simavr | The emulated Nano calibrates, raises and clears an alert |
 | Wokwi simulation | (optional, needs a token) The circuit in `diagram.json` calibrates with a working DS18B20 |
+
+---
+
+## ML pipeline
+
+```bash
+python ml/generate_data.py          # SYNTHETIC dataset -> ml/data/synthetic_sweat.csv (gitignored)
+python ml/train.py                  # -> include/model_weights.h, ml/model/model.json,
+                                    #    docs/results/metrics.json, docs/img/*.png
+python ml/export_parity_vectors.py  # -> test/test_parity/parity_vectors.h
+pio test -e native                  # confirm the firmware agrees bit for bit
+```
+
+**1. Synthetic data** ([`ml/ecosmart_ml/synth.py`](ml/ecosmart_ml/synth.py)).
+*All data in this project is synthetic. Nothing was recorded from people.*
+The generator creates 120 "wearers" × 40 min at 1 Hz, with a fixed seed (2026).
+Each wearer gets:
+- a personal resting baseline: sweat pH 4.8-6.6, conductivity 4-14 mS/cm,
+  skin temperature 33-35.5 °C;
+- slow AR(1) drift, a slow skin-temperature oscillation and sensor noise;
+- **benign exertion bumps** (more sweat, slightly warmer, +8-30 %
+  conductivity), labelled *normal*: these are the hard negatives;
+- 0-3 **anomaly episodes** of 1-4 min, each with smooth onset and recovery:
+  acidic pH, alkaline pH, conductivity surge, electrode dropout, temperature
+  rise, or a combined temperature + conductivity shift.
+
+Every sample then passes through the **firmware's own sensor model**: 10-bit
+ADC quantisation, the integer pH and conductivity conversions, and DS18B20
+1/16 °C steps. Training data therefore sits on exactly the value grid the Nano
+produces.
+
+**2. Features and personal baseline.** These are computed by a Python port
+([`pipeline.py`](ml/ecosmart_ml/pipeline.py)) of the C++ integer code, with
+the same rounding (half away from zero), the same integer square root and the
+same clamping. Each feature's scale floor is learnt from the training
+population: it is the pooled robust spread (1.4826 × MAD) of normal windows
+around each wearer's own calibration mean. Ninety seconds of calibration
+cannot observe slow drift, and without these floors 59 % of normal windows
+saturated `temp_mean` in an early version.
+
+**3. Model choice: a shallow decision tree.**
+
+| | Decision tree (chosen) | Logistic regression |
+|---|---|---|
+| Test-window F1 (synthetic) | **0.907** | 0.274 |
+| Two-sided deviations (pH too low *or* too high) | Natural: two thresholds | A linear score can't express "far from zero in either direction" without hand-made \|z\| features |
+| On-device inference | ≤ 5 int8 comparisons, no multiplications | 15 multiply-accumulates |
+| Flash | 21 nodes × 4 B + 60 B of floors = **144 B** | about 76 B |
+| Interpretability | Every path reads as a rule, e.g. `temp_mean > +3.9σ`, and is printed as a comment in the generated header | Weights |
+
+The depth is selected by **grouped 5-fold cross-validation on the training
+wearers** (no test data involved). The smallest depth within 0.01 F1 of the
+best wins, which is depth 5. Splits whose two children always predict the same
+label are collapsed (35 → 21 nodes) without changing any decision.
+
+**4. Quantised export.** Features are int8 z-scores, so sklearn's
+`z <= t.5` threshold is exactly `z <= floor(t)` in integers. The exported
+tree is the model that gets evaluated, so there is no float/int mismatch.
+[`include/model_weights.h`](include/model_weights.h) is generated, documented
+and stored in `PROGMEM`.
+
+**5. Saturation guard.** A window with ≥ 6 of its 15 z-scores pinned at ±127
+(a shorted probe or garbage input) is unlike anything the tree has seen, and
+the tree can route it to a "normal" leaf. Firmware and Python both flag such
+windows outright. The guard fires on 0.08 % of normal windows.
+
+## Results (synthetic data only)
+
+> [!IMPORTANT]
+> These numbers measure how well the pipeline separates the synthetic anomaly
+> patterns it was designed around. They say **nothing** about real
+> physiology, real sensors or any medical condition.
+
+Held-out test set: **30 unseen synthetic wearers**, 20 monitored hours,
+8,670 windows (8.6 % anomalous).
+
+| Window-level metric | Train | **Test** |
+|---|---|---|
+| Accuracy | 0.988 | **0.984** |
+| Precision | 0.903 | **0.904** |
+| Recall | 0.946 | **0.910** |
+| F1 | 0.924 | **0.907** |
+
+| Test confusion matrix | Predicted normal | Predicted anomaly |
+|---|---|---|
+| **Actual normal** | 7,853 | 72 |
+| **Actual anomaly** | 67 | 678 |
+
+**Event level** (debounced alert, full on-device pipeline including the guard):
+
+| Metric | Value |
+|---|---|
+| Anomaly episodes detected | **42 / 44 (95 %)** |
+| Median detection latency | **23.5 s** from onset |
+| False alerts | **0.3 per monitored hour** (6 in 20 h) |
+| By type | acidic pH 6/6 · alkaline pH 9/9 · conductivity surge 8/8 · electrode dropout 7/7 · temperature + conductivity 7/7 · temperature rise 5/7 |
+
+Window-level errors are concentrated at episode onsets and recoveries, where a
+32-sample window straddles the labelled boundary. The two missed episodes are
+small temperature rises; temperature is the slowest-moving channel and has the
+coarsest sensor steps.
+
+<p align="center">
+  <img src="docs/img/test_subject_timeline.png" alt="Unseen synthetic test wearer: pH, conductivity and temperature with labelled anomalies and the device alert" width="900"><br>
+  <img src="docs/img/depth_selection.png" alt="Cross-validated F1 by tree depth" width="480">
+</p>
+
+All figures and numbers are regenerated by `python ml/train.py`. The full
+metrics are in [`docs/results/metrics.json`](docs/results/metrics.json).
+
+## Memory budget
+
+Measured from the PlatformIO build output (`avr-gcc` 7.3, `-Os`) on an
+ATmega328P with 2,048 B SRAM and 30,720 B of usable flash (2 KB is the
+bootloader):
+
+| Build | Static RAM (.data + .bss) | Flash |
+|---|---|---|
+| `nanoatmega328` (sensors) | **773 B (37.7 %)** | **11,732 B (38.2 %)** |
+| `nanoatmega328_sim` | 748 B (36.5 %) | 11,872 B (38.6 %) |
+
+**Free SRAM at runtime**: **1,112 B**, reported by the firmware itself
+(`# free_ram_bytes=`) while running on the emulated ATmega328P after
+calibration (simulation build). This is the headroom left for the stack.
+
+| Static RAM consumer | Bytes |
+|---|---|
+| `AnomalyPipeline` total | **527** |
+| ├ 3 ring buffers (32 × int16 each + indices) | 198 |
+| ├ Personal baseline (accumulators, then reused for mean/scale) | 242 |
+| ├ Latest features (15 × int32) + z-scores (15 × int8) | 75 |
+| └ Alert state, counters, last prediction | 12 |
+| `HardwareSerial` (64 B RX + 64 B TX buffers) | 157 |
+| Sensor drivers, LEDs, timers, Arduino core | ~90 |
+
+Memory discipline:
+- static allocation only: no `malloc`, no `new`, no `String`;
+- every literal goes through `F()` or `PROGMEM`;
+- the model and its floors live in flash;
+- calibration accumulators are overlaid by the frozen baseline statistics,
+  which saves 120 B;
+- the DS18B20 driver talks OneWire directly instead of pulling in
+  DallasTemperature;
+- `m` over serial prints the current free RAM.
