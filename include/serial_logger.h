@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "phase.h"
+#include "pipeline.h"
 
 struct LogRecord {
   uint32_t ms;
@@ -25,6 +26,8 @@ namespace logger {
 void printBanner();
 void printCsvHeader();
 void printRecord(const LogRecord& r);
+// "# window=12 phase=MONITOR label=1 p=94 leaf=7 alert=1"
+void printWindow(uint16_t index, const WindowResult& w);
 void printFreeRam();
 int freeRam();  // bytes between the heap and the stack
 

@@ -68,6 +68,23 @@ void printRecord(const LogRecord& r) {
   Serial.println(r.alert ? 1 : 0);
 }
 
+void printWindow(uint16_t index, const WindowResult& w) {
+  Serial.print(F("# window="));
+  Serial.print(index);
+  Serial.print(F(" phase="));
+  printPhase(w.phase);
+  if (w.classified) {
+    Serial.print(F(" label="));
+    Serial.print(w.prediction.label);
+    Serial.print(F(" p="));
+    Serial.print(w.prediction.pAnomaly);
+    Serial.print(F(" leaf="));
+    Serial.print(w.prediction.leaf);
+  }
+  Serial.print(F(" alert="));
+  Serial.println(w.alert ? 1 : 0);
+}
+
 int freeRam() {
   int top;
   const int heapEnd = __brkval == 0 ? reinterpret_cast<int>(&__heap_start)
