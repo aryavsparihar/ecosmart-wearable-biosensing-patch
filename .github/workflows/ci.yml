@@ -67,3 +67,61 @@ jobs:
       - name: Training summary
         run: |
           { echo "### Training (synthetic data)"; echo '```'; cat train.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  arduino-ide:
+    name: Arduino IDE sketch (arduino-cli)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install AVR core and OneWire
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          arduino-cli lib install OneWire
+      - name: Compile exported sketch (sensors)
+        run: |
+          python tools/make_arduino_sketch.py
+          arduino-cli compile --fqbn arduino:avr:nano build/arduino/ecosmart_patch
+      - name: Compile exported sketch (SIMULATION_MODE)
+        run: |
+          python tools/make_arduino_sketch.py --simulation
+          arduino-cli compile --fqbn arduino:avr:nano build/arduino/ecosmart_patch
+
+  avr-smoke:
+    name: Run firmware on simavr
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO and simavr
+        run: |
+          pip install platformio==6.2.0
+          sudo apt-get update && sudo apt-get install -y simavr
+      - name: Build time-compressed simulation firmware
+        run: pio run -e simavr
+      - name: Execute on emulated ATmega328P
+        run: |
+          timeout 90 run_avr -m atmega328p -f 16000000 .pio/build/simavr/firmware.elf \
+            > simavr.log 2>&1 || true
+          sed -e 's/\x1b\[[0-9;]*m//g' simavr.log > serial.log
+          head -n 20 serial.log
+          grep -m1 "free_ram_bytes" serial.log
+          grep -q "personal baseline calibrated" serial.log
+          grep -q "ALERT - possible irregularity" serial.log
+          grep -q "alert cleared" serial.log
+          echo "Firmware calibrated, raised and cleared an alert on the emulated Nano."
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simavr-serial-log
+          path: serial.log
