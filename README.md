@@ -304,3 +304,131 @@ water). Confirm each one with indicator paper before use.
 > analog pH front-end, or the Wokwi potentiometer, to produce numbers. These
 > bench tests show that the sensing chain works. They are not physiological
 > measurements.
+
+---
+
+## Build, flash, simulate and test
+
+### Prerequisites
+
+```bash
+git clone https://github.com/aryavsparihar/ecosmart-wearable-biosensing-patch.git
+cd ecosmart-wearable-biosensing-patch
+python3 -m venv .venv && source .venv/bin/activate
+pip install platformio==6.2.0 -r ml/requirements.txt
+```
+
+> On Apple Silicon Macs, PlatformIO's AVR compiler is an x86-64 binary:
+> install Rosetta once with `softwareupdate --install-rosetta`.
+
+### PlatformIO environments
+
+| Environment | What it builds | Command |
+|---|---|---|
+| `nanoatmega328` | Real firmware: sensors on A0, A1 and D2, 1 Hz | `pio run -e nanoatmega328` |
+| `nanoatmega328_sim` | `SIMULATION_MODE`: an on-device synthetic generator replaces the sensors | `pio run -e nanoatmega328_sim` |
+| `wokwi` | Real firmware, time-compressed 4× (250 ms per sample) for the Wokwi circuit | `pio run -e wokwi` |
+| `simavr` | Simulation firmware, 50× faster, for the emulator smoke test | `pio run -e simavr` |
+| `native` | Hardware-independent core for the host Unity tests | `pio test -e native` |
+
+### Flash a real Nano
+
+```bash
+pio run -e nanoatmega328 -t upload        # or -e nanoatmega328_sim for the demo
+pio device monitor -b 115200              # 'r' = recalibrate, 'm' = free RAM
+python tools/serial_plotter.py --port /dev/ttyUSB0   # live plot (COMx on Windows)
+```
+
+The serial output is CSV. Lines starting with `#` are diagnostics:
+
+```text
+# Eco-Smart Wearable Biosensing Patch
+# Research prototype - NOT a medical device, not for diagnosis.
+# free_ram_bytes=1112
+ms,ph,cond_mScm,temp_C,phase,p_anomaly,alert
+33,5.54,8.40,34.13,WARMUP,0,0
+...
+# window=8 phase=MONITOR alert=0
+# event: personal baseline calibrated, monitoring
+# window=21 phase=MONITOR label=1 p=94 leaf=2 alert=1
+# event: ALERT - possible irregularity vs baseline
+```
+
+**Arduino IDE users**: run `python tools/make_arduino_sketch.py` (add
+`--simulation` for the demo build), then open
+`build/arduino/ecosmart_patch/ecosmart_patch.ino`. Install **OneWire** from the
+Library Manager, select **Arduino Nano**, and upload. CI compiles this exported
+sketch with `arduino-cli` on every push.
+
+### Simulate in Wokwi (no hardware)
+
+[`diagram.json`](diagram.json) wires a virtual Nano to **two potentiometers**
+standing in for the pH (A0) and electrode (A1) signals, a **DS18B20** with its
+4.7 kΩ pull-up on D2, and the **green and red LEDs** with 220 Ω resistors on D5
+and D6.
+
+**VS Code**
+1. Install the [Wokwi Simulator extension](https://marketplace.visualstudio.com/items?itemName=wokwi.wokwi-vscode) and run *Wokwi: Request a new License* (free).
+2. `pio run -e wokwi`
+3. Open `diagram.json` and press ▶ (or run *Wokwi: Start Simulator*). [`wokwi.toml`](wokwi.toml) points the simulator at `.pio/build/wokwi/firmware.hex`.
+4. Wait about 22 s for calibration (green LED blinking → steady), then turn a
+   potentiometer or click the DS18B20 to change its temperature. After two
+   anomalous windows the red LED turns on.
+
+**Browser**
+1. Create a new *Arduino Nano* project at [wokwi.com](https://wokwi.com).
+2. Replace its `diagram.json` with this repo's.
+3. Run `python tools/make_arduino_sketch.py` and paste the generated files into
+   the project (Wokwi's file menu lets you add `.h` and `.cpp` files). Add
+   `OneWire` under *Library Manager*, and add `#define SAMPLE_PERIOD_MS 250UL`
+   at the top of `config.h` to compress time.
+
+**Self-running demo**: build `nanoatmega328_sim` and point both paths in
+`wokwi.toml` at `.pio/build/nanoatmega328_sim/`. The firmware then cycles
+through scripted anomaly episodes on its own, and the LEDs follow.
+
+**CI**: the `wokwi` job runs this same circuit headlessly with
+[wokwi-ci-action](https://github.com/wokwi/wokwi-ci-action). It runs only when
+a `WOKWI_CLI_TOKEN` repository secret is set, and it fails if calibration
+doesn't finish or the DS18B20 isn't found on the bus.
+
+### Run the real firmware on an emulated ATmega328P
+
+```bash
+sudo apt-get install simavr                    # Linux
+pio run -e simavr
+timeout 30 simavr -m atmega328p -f 16000000 .pio/build/simavr/firmware.elf
+```
+
+The CI `avr-smoke` job does exactly this. It requires the serial output to
+show calibration, an alert and its clearing, and it uploads the log as a build
+artifact. The demo figure at the top of this README is that log.
+
+### Tests
+
+```bash
+pio test -e native     # 54 Unity tests: ring buffer, fixed point, sensor maths,
+                       # features, baseline, classifier, alert logic, pipeline,
+                       # simulation end-to-end, Python<->C++ parity
+pytest                 # 31 tests: Python mirror, generator, exporter, parity, plotter
+```
+
+| Test suite | What it proves |
+|---|---|
+| `test_parity` | The C++ pipeline reproduces the Python reference **bit for bit** (15 features, 15 z-scores, label, probability, leaf and alert for every window) on a synthetic recording plus random and out-of-range stress samples. A model fingerprint check catches stale vectors. |
+| `test_simulation` | `SIMULATION_MODE` signals pass through the real model and pipeline: all 10 scripted episodes raise an alert, and no alert fires during normal periods. |
+| `test_pipeline` | Window schedule, calibration hand-off, alert raise and clear, clamping, the saturation guard and reset. |
+| `ml/tests/test_config.py` | The Python constants are parsed against `include/config.h`, so the two sides cannot drift apart. |
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and
+pull request:
+
+| Job | Checks |
+|---|---|
+| Firmware build + native tests | All four AVR environments build (memory report in the job summary), and the Unity tests pass |
+| ML pipeline + parity | pytest; regenerating the data and retraining reproduces `model_weights.h` byte for byte; the parity vectors are up to date |
+| Arduino IDE sketch | The exported sketch compiles with `arduino-cli` in both sensor and simulation mode |
+| Run firmware on simavr | The emulated Nano calibrates, raises and clears an alert |
+| Wokwi simulation | (optional, needs a token) The circuit in `diagram.json` calibrates with a working DS18B20 |
