@@ -1,0 +1,87 @@
+{
+  "data": "SYNTHETIC (ml/ecosmart_ml/synth.py), split by subject",
+  "subjects": {
+    "train": 90,
+    "test": 30
+  },
+  "model": {
+    "type": "decision_tree",
+    "max_depth": 5,
+    "nodes": 21,
+    "flash_bytes": 144,
+    "cv_f1_by_depth": {
+      "2": 0.5112,
+      "3": 0.6582,
+      "4": 0.7885,
+      "5": 0.8853,
+      "6": 0.8847
+    },
+    "sklearn_agreement_train": 1.0
+  },
+  "window_level": {
+    "train": {
+      "windows": 26010,
+      "accuracy": 0.988,
+      "precision": 0.9026,
+      "recall": 0.9464,
+      "f1": 0.924,
+      "confusion_matrix": [
+        [
+          23808,
+          204
+        ],
+        [
+          107,
+          1891
+        ]
+      ]
+    },
+    "test": {
+      "windows": 8670,
+      "accuracy": 0.984,
+      "precision": 0.904,
+      "recall": 0.9101,
+      "f1": 0.907,
+      "confusion_matrix": [
+        [
+          7853,
+          72
+        ],
+        [
+          67,
+          678
+        ]
+      ]
+    }
+  },
+  "event_level_test": {
+    "episodes": 44,
+    "episodes_detected": 42,
+    "detection_rate": 0.9545,
+    "median_latency_s": 23.5,
+    "false_alerts": 5,
+    "monitored_hours": 20.0,
+    "false_alerts_per_hour": 0.25,
+    "detection_by_type": {
+      "acidic_ph": "6/6",
+      "alkaline_ph": "9/9",
+      "conductivity_surge": "8/8",
+      "electrode_dropout": "7/7",
+      "temp_and_conductivity": "7/7",
+      "temperature_rise": "5/7"
+    }
+  },
+  "baseline_comparison_test": {
+    "logistic_regression_f1": 0.274,
+    "decision_tree_f1": 0.907
+  },
+  "feature_importance": {
+    "ph_mean": 0.3312,
+    "ph_max": 0.0471,
+    "cond_mean": 0.3342,
+    "cond_max": 0.0039,
+    "temp_mean": 0.2731,
+    "temp_min": 0.0031,
+    "temp_max": 0.0073
+  }
+}
