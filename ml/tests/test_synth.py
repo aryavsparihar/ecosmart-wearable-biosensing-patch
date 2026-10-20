@@ -35,3 +35,9 @@ def test_envelope_shape():
     env = envelope(100, start=20, duration=50, ramp_in=10, ramp_out=10)
     assert env[0] == 0 and env[45] == 1 and env[99] == 0
     assert np.all((env >= 0) & (env <= 1))
+
+
+def test_short_recordings_do_not_crash():
+    for seed in range(40):
+        s = generate_dataset(1, seed=seed, n_samples=300)[0]
+        assert len(s.ph) == 300

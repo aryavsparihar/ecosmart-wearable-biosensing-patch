@@ -75,6 +75,8 @@ def _place_episodes(rng, n, count, earliest, min_gap=90):
         if len(placed) == count:
             break
         dur = int(rng.integers(60, 241))
+        if n - dur <= earliest:
+            continue  # recording too short for this episode
         start = int(rng.integers(earliest, n - dur))
         if all(start > e + min_gap or start + dur + min_gap < s for s, e in placed):
             placed.append((start, start + dur))
@@ -98,7 +100,9 @@ def generate_subject(rng: np.random.Generator, subject_id: int, n_samples: int =
 
     # Benign exertion bumps: more sweat, slightly warmer skin. Labelled NORMAL.
     for _ in range(int(rng.integers(0, 3))):
-        dur = int(rng.integers(120, 400))
+        dur = min(int(rng.integers(120, 400)), n - earliest_episode - 1)
+        if dur < 60:
+            continue  # recording too short for an exertion bump
         env = envelope(n, int(rng.integers(earliest_episode, n - dur)), dur,
                        int(rng.integers(40, 120)), int(rng.integers(40, 120)))
         cond_mult *= 1 + rng.uniform(0.08, 0.30) * env
