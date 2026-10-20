@@ -479,7 +479,7 @@ saturated `temp_mean` in an early version.
 | Test-window F1 (synthetic) | **0.907** | 0.274 |
 | Two-sided deviations (pH too low *or* too high) | Natural: two thresholds | A linear score can't express "far from zero in either direction" without hand-made \|z\| features |
 | On-device inference | ≤ 5 int8 comparisons, no multiplications | 15 multiply-accumulates |
-| Flash | 21 nodes × 4 B + 60 B of floors = **144 B** | about 76 B |
+| Flash | 21 nodes × 4 B + 60 B of floors = **144 B** | ~64 B (15 int32 weights + bias) |
 | Interpretability | Every path reads as a rule, e.g. `temp_mean > +3.9σ`, and is printed as a comment in the generated header | Weights |
 
 The depth is selected by **grouped 5-fold cross-validation on the training
@@ -576,3 +576,92 @@ Memory discipline:
 - the DS18B20 driver talks OneWire directly instead of pulling in
   DallasTemperature;
 - `m` over serial prints the current free RAM.
+
+---
+
+## Limitations
+
+Read this before drawing any conclusion from the project.
+
+- **Synthetic data only.** The model has never seen a real sweat signal. Its
+  accuracy reflects how separable the *designed* anomaly patterns are, not
+  real-world performance. Real sweat has inter-person variation, motion
+  artefacts, sweat-rate dependence and sensor ageing that the generator only
+  imitates loosely.
+- **No clinical meaning.** "Anomaly" means "statistically unlike this
+  wearer's first 90 seconds". It is not a symptom, a diagnosis or a risk
+  score. No link between these signals and PCOS, hormonal status or menstrual
+  health has been established by this work.
+- **Simplified sensing.**
+  - The foil electrodes are driven with DC, which polarises them over time
+    and can cause electrolysis. Real conductivity cells use AC excitation.
+  - Conductivity is not temperature-compensated (about 2 %/°C).
+  - The cell constant is nominal.
+  - The paper prototype's pH zone is an indicator strip read by eye. The A0
+    channel assumes an analog pH front-end that the prototype does not
+    include.
+  - A DS18B20 taped to the skin measures **skin** temperature, not core or
+    basal body temperature.
+- **Frozen, short baseline.** Calibration covers about 90 s and never adapts.
+  A long session will drift, so recalibrate with `r`. A wearer who is already
+  in an unusual state during calibration shifts everything that follows.
+- **Simple model.** The tree only sees 32-second windows; it has no memory of
+  longer trends or circadian or multi-day patterns. Thresholds are global to
+  the training population.
+- **Not validated hardware.** The materials have not been tested for skin
+  safety, sterility or biocompatibility, and the patch is not waterproof.
+- **Wokwi CI** needs a token, so without one the browser circuit is verified
+  manually and by the simavr run, not by the Wokwi job.
+
+## Future work
+
+- **Research motivation, not current capability**: work toward *studying*
+  whether multi-day sweat-biomarker trends carry information relevant to
+  endometriosis, PCOS and hormonal or menstrual-cycle research. That would
+  need IRB-approved studies, real cohorts and clinical partners.
+- **Real electrochemical sensors**: ion-selective electrodes (Na⁺, K⁺, Cl⁻),
+  an ISFET or iridium-oxide pH sensor, AC-excited conductivity with
+  temperature compensation, and possibly cortisol or glucose aptasensors.
+- **Clinical validation**: collect labelled real-world data, then retrain and
+  re-evaluate. Report sensitivity and specificity with confidence intervals
+  against a reference method, and treat "no diagnosis" as a hard constraint
+  until validated.
+- **BLE**: move to a BLE-capable MCU (e.g. nRF52840) to sync summaries to a
+  phone, still processing on the device and keeping data local by default.
+- **Adaptive baselines**: slowly track the baseline during confirmed-normal
+  periods, and add multi-day personal models.
+- **Better microfluidics**: laser-cut channels, a controlled sweat-rate
+  inlet, and a sealed, fully biodegradable build.
+- **Power**: sleep between samples and measure battery life on a coin cell.
+
+## Repository layout
+
+```text
+├── include/               firmware headers (config, pins, pipeline, model_weights.h ← generated)
+├── src/                   portable core: features, baseline, classifier, pipeline, simulator
+│   ├── hal/               Arduino-only drivers: pH, conductivity, DS18B20, LEDs, serial logger
+│   └── main.cpp           setup()/loop()
+├── test/                  Unity tests (pio test -e native), incl. Python↔C++ parity vectors
+├── ml/
+│   ├── ecosmart_ml/       bit-exact Python mirror, synthetic generator, exporter, plots
+│   ├── generate_data.py   SYNTHETIC dataset
+│   ├── train.py           train, evaluate, export include/model_weights.h
+│   ├── export_parity_vectors.py
+│   ├── model/model.json   exported tree (source of the parity vectors)
+│   └── tests/             pytest suite
+├── tools/                 serial_plotter.py, make_arduino_sketch.py
+├── docs/                  design notes, fabrication guide, figures, metrics
+├── diagram.json, wokwi.toml   Wokwi circuit
+└── platformio.ini         nanoatmega328, nanoatmega328_sim, wokwi, simavr, native
+```
+
+## Documentation
+
+- [Design notes](docs/design-notes.md): why every engineering decision was made
+- [Fabrication guide](docs/fabrication-guide.md): building the 7-layer patch
+- [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
+
+## License
+
+[MIT](LICENSE) © 2026 Aryaveer Singh Parihar. The MIT license disclaims all
+warranties. Nothing in this repository is medical advice.
