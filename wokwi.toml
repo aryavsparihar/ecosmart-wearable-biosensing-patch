@@ -1,0 +1,8 @@
+# Wokwi simulator configuration (VS Code extension / wokwi-cli).
+# Build first:  pio run -e wokwi
+# For the self-running synthetic demo instead, point both paths at
+# .pio/build/nanoatmega328_sim/ and build that environment.
+[wokwi]
+version = 1
+firmware = ".pio/build/wokwi/firmware.hex"
+elf = ".pio/build/wokwi/firmware.elf"

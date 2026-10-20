@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "author": "Aryaveer Singh Parihar",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_ph",
+      "top": -140,
+      "left": -40,
+      "attrs": { "value": "560" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_cond",
+      "top": -140,
+      "left": 60,
+      "attrs": { "value": "485" }
+    },
+    {
+      "type": "board-ds18b20",
+      "id": "temp1",
+      "top": -125,
+      "left": 190,
+      "attrs": { "temperature": "34.2" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_pullup",
+      "top": -40,
+      "left": 230,
+      "rotate": 90,
+      "attrs": { "value": "4700" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_green",
+      "top": 150,
+      "left": 40,
+      "attrs": { "color": "green", "label": "normal" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_red",
+      "top": 150,
+      "left": 110,
+      "attrs": { "color": "red", "label": "irregularity" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_green",
+      "top": 230,
+      "left": 30,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_red",
+      "top": 230,
+      "left": 100,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    }
+  ],
+  "connections": [
+    [ "pot_ph:VCC", "nano:5V", "red", [] ],
+    [ "pot_ph:GND", "nano:GND.1", "black", [] ],
+    [ "pot_ph:SIG", "nano:A0", "orange", [] ],
+    [ "pot_cond:VCC", "nano:5V", "red", [] ],
+    [ "pot_cond:GND", "nano:GND.1", "black", [] ],
+    [ "pot_cond:SIG", "nano:A1", "blue", [] ],
+    [ "temp1:VCC", "nano:5V", "red", [] ],
+    [ "temp1:GND", "nano:GND.2", "black", [] ],
+    [ "temp1:DQ", "nano:2", "green", [] ],
+    [ "r_pullup:1", "nano:5V", "red", [] ],
+    [ "r_pullup:2", "temp1:DQ", "green", [] ],
+    [ "nano:5", "r_green:1", "green", [] ],
+    [ "r_green:2", "led_green:A", "green", [] ],
+    [ "led_green:C", "nano:GND.2", "black", [] ],
+    [ "nano:6", "r_red:1", "red", [] ],
+    [ "r_red:2", "led_red:A", "red", [] ],
+    [ "led_red:C", "nano:GND.2", "black", [] ]
+  ],
+  "dependencies": {}
+}
